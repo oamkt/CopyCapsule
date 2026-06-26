@@ -1,0 +1,7 @@
+.build/
+CopyCapsule.app/
+*.dmg
+.DS_Store
+.sparkle-tools/
+.vscode/
+*.xcodeproj
