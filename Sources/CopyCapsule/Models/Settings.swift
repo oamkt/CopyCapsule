@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// Application-wide settings backed by UserDefaults.
 @MainActor
@@ -35,6 +36,18 @@ final class AppSettings {
     var exportShortcut: Shortcut {
         didSet { saveShortcut(exportShortcut, forKey: keyExportShortcut) }
     }
+    var useDarkMode: Bool {
+        didSet {
+            UserDefaults.standard.set(useDarkMode, forKey: keyDarkMode)
+            applyAppearance()
+        }
+    }
+
+    /// Whether the user has explicitly chosen an appearance mode.
+    /// New installs return false → the app follows the system appearance.
+    var hasSetAppearance: Bool {
+        UserDefaults.standard.object(forKey: keyDarkMode) != nil
+    }
     var onWindowShortcutChange: (() -> Void)?
 
     private init() {
@@ -47,6 +60,21 @@ final class AppSettings {
         self.tagShortcut = Self.loadShortcut(default: .defaultTagInput, forKey: keyTagShortcut)
         self.windowShortcut = Self.loadShortcut(default: .defaultToggleWindow, forKey: keyWindowShortcut)
         self.exportShortcut = Self.loadShortcut(default: .defaultExport, forKey: keyExportShortcut)
+        self.useDarkMode = ud.object(forKey: keyDarkMode) as? Bool ?? false
+    }
+
+    func applyAppearance() {
+        guard hasSetAppearance else {
+            NSApp.appearance = nil // follow system
+            return
+        }
+        NSApp.appearance = NSAppearance(named: useDarkMode ? .darkAqua : .aqua)
+    }
+
+    /// Shift-click the theme button to reset back to "follow system".
+    func resetAppearance() {
+        UserDefaults.standard.removeObject(forKey: keyDarkMode)
+        NSApp.appearance = nil
     }
 
     private func saveShortcut(_ s: Shortcut, forKey key: String) {
@@ -68,3 +96,4 @@ private let keyHotKeyMode = "hotKeyMode"
 private let keyTagShortcut = "tagShortcut"
 private let keyWindowShortcut = "windowShortcut"
 private let keyExportShortcut = "exportShortcut"
+private let keyDarkMode = "useDarkMode"

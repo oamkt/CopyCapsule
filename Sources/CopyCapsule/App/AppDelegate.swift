@@ -11,14 +11,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var repository: ClipRepository?
     private var viewModel: ClipHistoryViewModel?
     private var updaterController: SPUStandardUpdaterController?
+    private var globalQuitMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        // Global ⌘Q — quit from anywhere without needing the window open
+        globalQuitMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.modifierFlags.contains(.command), event.keyCode == 12 { // keyCode 12 = Q
+                NSApp.terminate(nil)
+            }
+            return event
+        }
 
         let dbURL = databaseURL()
         let repository: ClipRepository
         do { repository = try ClipRepository(dbPath: dbURL.path); self.repository = repository }
         catch { NSApp.terminate(nil); return }
+
+        // Seed built-in guide on first launch
+        try? GuideSeeder.seedIfNeeded(into: repository)
 
         let viewModel = ClipHistoryViewModel(repository: repository)
         self.viewModel = viewModel
@@ -39,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let settings = AppSettings.shared
+        settings.applyAppearance()
         retentionService = RetentionService(repository: repository, settings: settings)
         retentionService?.start()
         LoginItemManager.syncWithSetting(settings.autoStartEnabled)
@@ -77,6 +90,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        if let monitor = globalQuitMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
         clipboardMonitor?.stopPolling()
         retentionService?.stop()
         hotKeyManager?.unregister()

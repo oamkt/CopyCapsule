@@ -12,7 +12,7 @@ final class RetentionService {
     /// Check interval: every hour
     private static let checkInterval: TimeInterval = 3600
     /// Pinned items auto-unpin after 7 days.
-    private static let pinnedExpiryDays = 7
+    private static let pinnedExpiryDays = 6
 
     init(repository: ClipRepository, settings: AppSettings) {
         self.repository = repository

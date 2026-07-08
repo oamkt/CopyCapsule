@@ -29,35 +29,77 @@ final class MenuBarManager: NSObject {
 
         guard let button = statusItem.button else { return }
 
-        // Use SF Symbol clipboard icon, template mode adapts to light/dark menu bar
-        if let image = NSImage(
-            systemSymbolName: "clipboard",
-            accessibilityDescription: "CopyCapsule"
-        ) {
-            image.isTemplate = true
-            button.image = image
-        }
-
+        button.image = pillIcon()
         button.target = self
         button.action = #selector(handleStatusItemClick)
         button.toolTip = "CopyCapsule — Clipboard History"
-        button.sendAction(on: [.leftMouseDown, .rightMouseDown])
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+    }
+
+    /// Draw a two-tone pill icon: left half opaque, right half semi-transparent.
+    private func pillIcon() -> NSImage {
+        let width: CGFloat = 21.5
+        let height: CGFloat = 11.5
+        let size = NSSize(width: width, height: height)
+
+        let image = NSImage(size: size, flipped: false) { rect in
+            let path = NSBezierPath(
+                roundedRect: rect.insetBy(dx: 0.5, dy: 1),
+                xRadius: (height - 2) / 2,
+                yRadius: (height - 2) / 2
+            )
+            path.lineWidth = 1.3
+
+            // Left half — solid
+            let midX = rect.midX
+            let leftRect = NSRect(x: 0, y: 0, width: midX, height: height)
+            NSGraphicsContext.current?.saveGraphicsState()
+            path.addClip()
+            NSColor.black.withAlphaComponent(1.0).setFill()
+            NSBezierPath(rect: leftRect).fill()
+            NSGraphicsContext.current?.restoreGraphicsState()
+
+            // Right half — semi-transparent
+            NSGraphicsContext.current?.saveGraphicsState()
+            path.addClip()
+            NSColor.black.withAlphaComponent(0.35).setFill()
+            let rightRect = NSRect(x: midX, y: 0, width: midX, height: height)
+            NSBezierPath(rect: rightRect).fill()
+            NSGraphicsContext.current?.restoreGraphicsState()
+
+            // Border
+            NSColor.black.withAlphaComponent(1.0).setStroke()
+            path.stroke()
+
+            // Center divider
+            let divider = NSBezierPath()
+            divider.move(to: NSPoint(x: midX, y: 2))
+            divider.line(to: NSPoint(x: midX, y: height - 2))
+            NSColor.black.withAlphaComponent(1.0).setStroke()
+            divider.stroke()
+
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     @objc private func handleStatusItemClick() {
         guard let event = NSApp.currentEvent else { return }
 
-        if event.type == .rightMouseDown {
-            let menu = NSMenu()
-            let quitItem = NSMenuItem(
-                title: "退出 CopyCapsule",
-                action: #selector(quitApp),
-                keyEquivalent: "q"
-            )
-            quitItem.keyEquivalentModifierMask = [.command]
-            menu.addItem(quitItem)
-            NSMenu.popUpContextMenu(menu, with: event, for: statusItem.button!)
-        } else {
+        if event.type == .rightMouseUp {
+            statusItem.menu = {
+                let menu = NSMenu()
+                menu.addItem(NSMenuItem(
+                    title: "退出 CopyCapsule",
+                    action: #selector(quitApp),
+                    keyEquivalent: ""
+                ))
+                return menu
+            }()
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        } else if event.type == .leftMouseUp {
             toggleWindow()
         }
     }

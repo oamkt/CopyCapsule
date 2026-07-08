@@ -19,7 +19,7 @@ struct HistoryPanelView: View {
 
     /// Threshold at which a category gets its own tab.
     private let favGroupThreshold = 1
-    private let pinGroupThreshold = 4
+    private let pinGroupThreshold = 3
 
     var body: some View {
         // Force @Observable tracking so body re-evaluates when selection changes
@@ -52,10 +52,11 @@ struct HistoryPanelView: View {
 
             // Settings row (expands below footer)
             if showSettingsRow {
-                settingsRow
+                SettingsRowView()
             }
         }
         .frame(minWidth: 300, minHeight: 320)
+        .transaction { $0.animation = nil }
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay {
             if viewModel.showTagInput {
@@ -88,9 +89,9 @@ struct HistoryPanelView: View {
         }()
 
         if items.isEmpty {
-            EmptyStateView()
+            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 4) {
                     ForEach(items) { item in
                         cardView(for: item)
@@ -122,74 +123,6 @@ struct HistoryPanelView: View {
             onTag: { viewModel.startTagging(item) },
             onRemoveTag: { tag in viewModel.removeTag(id: item.id, tag: tag) }
         )
-    }
-
-    // MARK: - Settings Row
-
-    private let settingsMargin: CGFloat = 20
-
-    private var settingsRow: some View {
-        let s = AppSettings.shared
-        return VStack(spacing: 0) {
-            Rectangle().fill(Color.secondary.opacity(0.15)).frame(height: 1)
-                .padding(.horizontal, settingsMargin)
-                .padding(.bottom, 10)
-            HStack(alignment: .bottom, spacing: 0) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 1) {
-                        ForEach([1, 3, 5], id: \.self) { d in
-                            Button {
-                                s.retentionDays = d
-                            } label: {
-                                Text("\(d)")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(s.retentionDays == d ? .white : .secondary)
-                                    .frame(width: 18, height: 18)
-                                    .background(Circle().fill(s.retentionDays == d ? Color.gray.opacity(0.7) : Color.gray.opacity(0.18)))
-                            }.buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 3).padding(.vertical, 2)
-                    .background(Capsule().fill(Color.gray.opacity(0.12)))
-                }
-
-                Spacer()
-
-                HStack(spacing: 4) {
-                    shortcutCapsule("新建标签", s.tagShortcut) { s.tagShortcut = $0 }
-                    shortcutCapsule("快捷窗口", s.windowShortcut) { s.windowShortcut = $0 }
-                    shortcutCapsule("导出标签组", s.exportShortcut) { s.exportShortcut = $0 }
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 3) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { s.autoStartEnabled.toggle() }
-                        LoginItemManager.syncWithSetting(s.autoStartEnabled)
-                    } label: {
-                        HStack(spacing: 0) {
-                            if s.autoStartEnabled { Spacer(minLength: 0) }
-                            Circle().fill(s.autoStartEnabled ? Color.gray.opacity(0.8) : Color.gray.opacity(0.5))
-                                .frame(width: 16, height: 16).padding(1)
-                            if !s.autoStartEnabled { Spacer(minLength: 0) }
-                        }
-                        .frame(width: 30, height: 18)
-                        .background(Capsule().fill(s.autoStartEnabled ? Color.gray.opacity(0.25) : Color.gray.opacity(0.18)))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 3).padding(.vertical, 2)
-                    .background(Capsule().fill(Color.gray.opacity(0.12)))
-                }
-            }
-            .padding(.horizontal, settingsMargin)
-            .padding(.top, 10)
-            .padding(.bottom, 20)
-        }
-    }
-
-    private func shortcutCapsule(_ name: String, _ sc: Shortcut, _ onChange: @escaping (Shortcut) -> Void) -> some View {
-        ShortcutCapsuleView(name: name, shortcut: sc, onChange: onChange)
     }
 
     // MARK: - Tags Bar
@@ -292,7 +225,7 @@ struct HistoryPanelView: View {
         return VStack(spacing: 0) {
             HStack(spacing: 0) {
                 HStack(spacing: 4) {
-                    // [total 🧹] capsule
+                    // [total 🧹] capsule — always visible
                     HStack(spacing: 4) {
                         Text("\(total)")
                             .font(.system(size: 10, weight: .medium))
@@ -302,40 +235,45 @@ struct HistoryPanelView: View {
                         Button {
                             viewModel.clearHistory()
                         } label: {
-                            Text("🧹").font(.system(size: 12))
+                            Image(systemName: "trash.slash.fill").font(.system(size: 12)).foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain).help("Clear recent history")
                     }
                     .padding(.leading, 4).padding(.trailing, 8).padding(.vertical, 3)
                     .background(Capsule().fill(Color.gray.opacity(0.12)))
+                    .layoutPriority(2)
 
-                    // Settings capsule (⚙️ + optional expanded title)
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.15)) { showSettingsRow.toggle() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("⚙️").font(.system(size: 12))
-                                .frame(width: 18, height: 18)
-                                .background(Circle().fill(Color.gray.opacity(0)))
-                            if showSettingsRow {
-                                Text("保留天数 > 快捷键 > 开机自启")
+                    // Settings capsule (⚙️ + optional expanded title) — yields space first
+                    HStack(spacing: 4) {
+                        Image(systemName: "gearshape.fill").font(.system(size: 13)).foregroundColor(.secondary)
+                            .frame(width: 18, height: 18)
+                        if showSettingsRow {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                Text("窗口颜色 > 保留天数 > 快捷键 > 开机自启")
                                     .font(.system(size: 11.5))
                                     .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: true, vertical: false)
                             }
+                            .frame(minWidth: 30, idealWidth: 130)
                         }
-                        .padding(.leading, 4).padding(.trailing, 8).padding(.vertical, 3)
-                        .background(Capsule().fill(Color.gray.opacity(0.12)))
                     }
-                    .buttonStyle(.plain).help("设置")
+                    .padding(.leading, 4).padding(.trailing, 8).padding(.vertical, 3)
+                    .background(Capsule().fill(Color.gray.opacity(0.12)))
+                    .contentShape(Capsule())
+                    .onTapGesture {
+                        showSettingsRow.toggle()
+                    }
+                    .help("设置")
+                    .layoutPriority(0)
                 }
                 .layoutPriority(1)
 
-                Spacer(minLength: 0)
+                Spacer(minLength: 10)
 
                 HStack(spacing: 14) {
-                    if showFavTab { tabButton(tab: .favorites, label: "☀️", count: favCount) }
-                    if showPinTab { tabButton(tab: .pinned, label: "⛳️", count: pinCount) }
-                    if total > 0 { tabButton(tab: .recent, label: "📄", count: nil) }
+                    if showFavTab { tabButton(tab: .favorites, image: "star.fill", count: favCount) }
+                    if showPinTab { tabButton(tab: .pinned, image: "pin.fill", count: pinCount) }
+                    if total > 0 { tabButton(tab: .recent, image: "doc.text.fill", count: nil) }
                 }
                 .layoutPriority(3)
                 .background(Color(nsColor: .windowBackgroundColor))
@@ -347,8 +285,9 @@ struct HistoryPanelView: View {
     }
 
     /// A single tab button in the footer.
-    private func tabButton(tab: Tab, label: String, count: Int?) -> some View {
+    private func tabButton(tab: Tab, image: String, count: Int?) -> some View {
         let isSelected = selectedTab == tab
+        let yOffset: CGFloat = tab == .favorites ? -0.5 : (tab == .pinned ? 0.5 : 0)
 
         return Button {
             let now = Date()
@@ -356,8 +295,10 @@ struct HistoryPanelView: View {
             lastTabTime = now
             selectedTab = tab
         } label: {
-            Text(label)
-                .font(.system(size: isSelected ? 14 : 12))
+            Image(systemName: image)
+                .font(.system(size: 12))
+                .foregroundColor(isSelected ? .green : .secondary)
+                .offset(y: yOffset)
         }
         .buttonStyle(.plain)
         .help(tooltip(for: tab, count: count))
@@ -406,5 +347,134 @@ private struct ShortcutCapsuleView: View {
             onChange(Shortcut(keyCode: Int(event.keyCode), modifiers: mods.rawValue))
             isRecording = false
         }))
+    }
+}
+
+// MARK: - Settings Row View
+
+private struct SettingsRowView: View {
+    private let margin: CGFloat = 20
+    private let s = AppSettings.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(Color.secondary.opacity(0.15)).frame(height: 1)
+                .padding(.horizontal, margin)
+                .padding(.bottom, 10)
+            HStack(alignment: .bottom, spacing: 8) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .bottom, spacing: 6) {
+                        themeButton
+                        retentionDays
+                        shortcutsRow
+                    }
+                }
+
+                autoStartToggle
+                    .fixedSize()
+            }
+            .padding(.horizontal, margin)
+            .padding(.top, 10)
+            .padding(.bottom, 20)
+        }
+    }
+
+    // MARK: Theme
+
+    /// Whether the UI currently renders dark — respects the "follow system" default.
+    private var isEffectivelyDark: Bool {
+        if s.hasSetAppearance {
+            return s.useDarkMode
+        }
+        return NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
+    private var themeButton: some View {
+        Button {
+            let shiftHeld = NSEvent.modifierFlags.contains(.shift)
+            if shiftHeld {
+                s.resetAppearance()
+            } else if !s.hasSetAppearance {
+                // First toggle: flip away from the current system appearance
+                s.useDarkMode = !isEffectivelyDark
+            } else {
+                s.useDarkMode.toggle()
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.12))
+                    .frame(width: 18, height: 18)
+                if isEffectivelyDark {
+                    Circle()
+                        .fill(Color.gray.opacity(0.7))
+                        .frame(width: 18, height: 18)
+                        .mask(Rectangle().offset(x: 9))
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.18))
+                        .frame(width: 18, height: 18)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help((isEffectivelyDark ? "切换到浅色模式" : "切换到深色模式") + "  |  ⇧点击重置为跟随系统")
+        .padding(.horizontal, 3).padding(.vertical, 2)
+        .background(Capsule().fill(Color.gray.opacity(0.12)))
+    }
+
+    // MARK: Retention Days
+
+    private var retentionDays: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 1) {
+                ForEach([1, 3, 5], id: \.self) { d in
+                    Button {
+                        s.retentionDays = d
+                    } label: {
+                        Text("\(d)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(s.retentionDays == d ? .white : .secondary)
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(s.retentionDays == d ? Color.gray.opacity(0.7) : Color.gray.opacity(0.18)))
+                    }.buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 3).padding(.vertical, 2)
+            .background(Capsule().fill(Color.gray.opacity(0.12)))
+        }
+    }
+
+    // MARK: Shortcuts
+
+    private var shortcutsRow: some View {
+        HStack(spacing: 4) {
+            ShortcutCapsuleView(name: "新建标签", shortcut: s.tagShortcut) { s.tagShortcut = $0 }
+            ShortcutCapsuleView(name: "快捷窗口", shortcut: s.windowShortcut) { s.windowShortcut = $0 }
+            ShortcutCapsuleView(name: "导出标签组", shortcut: s.exportShortcut) { s.exportShortcut = $0 }
+        }
+    }
+
+    // MARK: Auto-start
+
+    private var autoStartToggle: some View {
+        VStack(alignment: .trailing, spacing: 3) {
+            Button {
+                s.autoStartEnabled.toggle()
+                LoginItemManager.syncWithSetting(s.autoStartEnabled)
+            } label: {
+                HStack(spacing: 0) {
+                    if s.autoStartEnabled { Spacer(minLength: 0) }
+                    Circle().fill(s.autoStartEnabled ? Color.gray.opacity(0.8) : Color.gray.opacity(0.5))
+                        .frame(width: 16, height: 16).padding(1)
+                    if !s.autoStartEnabled { Spacer(minLength: 0) }
+                }
+                .frame(width: 30, height: 18)
+                .background(Capsule().fill(s.autoStartEnabled ? Color.gray.opacity(0.25) : Color.gray.opacity(0.18)))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 3).padding(.vertical, 2)
+            .background(Capsule().fill(Color.gray.opacity(0.12)))
+        }
     }
 }

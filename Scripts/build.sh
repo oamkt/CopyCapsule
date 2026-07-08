@@ -6,7 +6,7 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="CopyCapsule"
 BUILD_DIR="$PROJECT_DIR/.build"
 APP_BUNDLE="$PROJECT_DIR/$APP_NAME.app"
-VERSION="${VERSION:-2.0.0}"
+VERSION="${VERSION:-2.1.0}"
 DMG_NAME="$APP_NAME-$VERSION.dmg"
 DMG_PATH="$PROJECT_DIR/$DMG_NAME"
 
@@ -33,7 +33,6 @@ echo "Binary: $BINARY"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
-mkdir -p "$APP_BUNDLE/Contents/Frameworks"
 
 # 4. Copy binary
 cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
@@ -42,7 +41,7 @@ chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 # 5. Copy Sparkle framework (auto-update engine)
 SPARKLE_FW="$BUILD_DIR/arm64-apple-macosx/release/Sparkle.framework"
 if [ -d "$SPARKLE_FW" ]; then
-    cp -R "$SPARKLE_FW" "$APP_BUNDLE/Contents/Frameworks/"
+    cp -R "$SPARKLE_FW" "$APP_BUNDLE/Contents/MacOS/"
     echo "Sparkle framework embedded"
 else
     echo "Warning: Sparkle.framework not found at $SPARKLE_FW"
@@ -50,6 +49,9 @@ fi
 
 # 5. Copy Info.plist
 cp "$PROJECT_DIR/Resources/Info.plist" "$APP_BUNDLE/Contents/"
+
+# 5b. Copy app icon
+cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/"
 
 # 6. Ad-hoc code signing
 echo "Signing with ad-hoc identity..."

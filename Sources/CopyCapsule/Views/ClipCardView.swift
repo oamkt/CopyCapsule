@@ -14,6 +14,7 @@ struct ClipCardView: View {
     var onRemoveTag: ((String) -> Void)?
 
     @State private var isHovering = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +29,6 @@ struct ClipCardView: View {
 
             // Bottom bar: timestamp + source app | colored dots
             HStack(spacing: 0) {
-                // Timestamp + source app + tags
                 HStack(spacing: 6) {
                     Text(formattedTime(item.createdAt))
                         .font(.system(size: 10))
@@ -49,7 +49,6 @@ struct ClipCardView: View {
                     }
                 }
                 Spacer()
-                // Action dots (spacing matches footer tabs)
                 HStack(spacing: 14) {
                     favoriteDot
                     if showPinButton { pinDot }
@@ -145,16 +144,17 @@ struct ClipCardView: View {
     }
 
     private var cardBackgroundColor: Color {
+        let isDark = colorScheme == .dark
         if isSelected {
-            return Color.gray.opacity(0.2)
+            return Color.gray.opacity(isDark ? 0.3 : 0.2)
         }
         if isPinnedInline {
-            return Color.gray.opacity(0.25)
+            return Color.gray.opacity(isDark ? 0.35 : 0.25)
         }
         if isHovering {
-            return .clipAccentLight
+            return isDark ? .clipAccentLightDark : .clipAccentLight
         }
-        return .clipCardBackground
+        return isDark ? .clipCardBackgroundDark : .clipCardBackground
     }
 
     private func formattedTime(_ date: Date) -> String {
@@ -173,9 +173,10 @@ struct ClipCardView: View {
 
     private var favoriteDot: some View {
         Button(action: onFavorite) {
-            Text("☀️")
+            Image(systemName: "star.fill")
                 .font(.system(size: 12))
-                .opacity(item.isFavorited ? 1.0 : 0.35)
+                .foregroundColor(item.isFavorited ? .green : .secondary)
+                .offset(y: -0.5)
         }
         .buttonStyle(.plain)
         .help(item.isFavorited ? "Remove from favorites" : "Add to favorites")
@@ -183,9 +184,10 @@ struct ClipCardView: View {
 
     private var pinDot: some View {
         Button(action: onPin) {
-            Text("⛳️")
+            Image(systemName: "pin.fill")
                 .font(.system(size: 12))
-                .opacity(item.isPinned ? 1.0 : 0.35)
+                .foregroundColor(item.isPinned ? .green : .secondary)
+                .offset(y: 0.5)
         }
         .buttonStyle(.plain)
         .help(item.isPinned ? "Unpin" : "Pin to top")
@@ -193,9 +195,9 @@ struct ClipCardView: View {
 
     private var deleteDot: some View {
         Button(action: onDelete) {
-            Text("🚮")
+            Image(systemName: "trash.fill")
                 .font(.system(size: 12))
-                .opacity(isHovering ? 0.9 : 0.35)
+                .foregroundColor(.secondary)
         }
         .buttonStyle(.plain)
         .help("Delete")

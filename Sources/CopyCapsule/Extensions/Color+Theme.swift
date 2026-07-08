@@ -20,4 +20,12 @@ extension Color {
 
     /// Favorite star gold (#FFB800)
     static let clipFavoriteGold = Color(red: 1.0, green: 0.722, blue: 0.0)
+
+    // MARK: - Dark Mode Variants
+
+    /// Dark card background (#212226)
+    static let clipCardBackgroundDark = Color(red: 0.129, green: 0.129, blue: 0.149)
+
+    /// Dark accent light — hover background (#1A2E48)
+    static let clipAccentLightDark = Color(red: 0.102, green: 0.180, blue: 0.282)
 }
